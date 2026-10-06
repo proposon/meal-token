@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Digital Breakfast Token</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--tx:#14213d;--mu:#5b6678;--pr:#1d4ed8;--prt:#fff;--ok:#0f7b3f;--okb:#e3f6ea;--wa:#9a5b00;--wab:#fff3d6;--er:#b42318;--erb:#fde8e6;--bd:#dde3ee;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0e1424;--card:#172036;--tx:#e8edf8;--mu:#9aa6bd;--pr:#6d9bff;--prt:#0e1424;--ok:#5fd68c;--okb:#12301f;--wa:#f2b44d;--wab:#3a2a0c;--er:#ff8f85;--erb:#3b1613;--bd:#2a3550}}
+:root[data-theme=dark]{--bg:#0e1424;--card:#172036;--tx:#e8edf8;--mu:#9aa6bd;--pr:#6d9bff;--prt:#0e1424;--ok:#5fd68c;--okb:#12301f;--wa:#f2b44d;--wab:#3a2a0c;--er:#ff8f85;--erb:#3b1613;--bd:#2a3550}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:560px;margin:0 auto;padding:16px}.wide{max-width:1000px}.narrow{padding-top:8vh}
+h1{font-size:1.5rem;margin:.2rem 0}h2{font-size:1.1rem;margin:.2rem 0 .6rem}.muted{color:var(--mu);margin:.2rem 0}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px;margin:12px 0}
+.btn{display:block;width:100%;border:0;border-radius:12px;padding:14px;font:600 1rem inherit;background:var(--pr);color:var(--prt);cursor:pointer;margin-top:10px}
+.btn.big{padding:18px;font-size:1.1rem}.btn.sec{background:transparent;color:var(--pr);border:1.5px solid var(--pr)}.btn.sm{display:inline-block;width:auto;padding:6px 10px;font-size:.85rem;margin:2px}
+.btn.bad{background:var(--er);color:#fff}
+label{display:block;font-weight:600;font-size:.9rem;margin-top:10px}input,select{width:100%;padding:12px;border:1.5px solid var(--bd);border-radius:10px;font:inherit;background:var(--bg);color:var(--tx);margin-top:4px}
+.seg{display:flex;gap:6px;margin:14px 0}.seg button,.nav button{flex:1;padding:10px;border:1.5px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;font:600 .9rem inherit;cursor:pointer}
+.seg .on,.nav .on{background:var(--pr);color:var(--prt);border-color:var(--pr)}
+.nav{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap}.nav button{min-width:80px}
+.top{display:flex;justify-content:space-between;align-items:center}
+.pill{display:inline-block;padding:4px 12px;border-radius:99px;font-weight:700;font-size:.85rem}
+.ok{background:var(--okb);color:var(--ok)}.wa{background:var(--wab);color:var(--wa)}.er{background:var(--erb);color:var(--er)}
+.err{color:var(--er);min-height:1.2em;margin:.5rem 0 0}
+.qr{background:#fff;padding:14px;border-radius:12px;max-width:280px;margin:12px auto}.qr svg{width:100%;height:auto;display:block}
+.tok{font:700 1.3rem ui-monospace,Menlo,monospace;text-align:center;word-break:break-all}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}.stat{text-align:center}.stat b{display:block;font-size:2rem}
+.res{border-radius:16px;padding:16px;margin:12px 0;font-weight:700;font-size:1.15rem}
+table{width:100%;border-collapse:collapse;font-size:.9rem}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--bd)}.sc{overflow-x:auto}
+.ov{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;padding:16px;z-index:9}.ov .card{max-width:440px;width:100%;max-height:90%;overflow:auto}
+video{width:100%;border-radius:12px;background:#000}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:12px 18px;border-radius:12px;z-index:20;max-width:90%;display:none}
+</style></head><body>
+<div id="app"></div><div id="toast" role="status"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<script>
+const $=(s,e=document)=>e.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
+const fmtT=i=>new Date(i).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit'});
+const ago=n=>{const d=new Date(today()+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-n);return d.toISOString().slice(0,10)};
+async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('bf:'+s));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+let DB,S={lr:'student'},stream=null;
+const save=()=>{try{localStorage.setItem('bf_demo_v1',JSON.stringify(DB))}catch{}};
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',3200)}
+async function init(){
+ try{DB=JSON.parse(localStorage.getItem('bf_demo_v1'))}catch{}
+ if(!DB){const pw=await sha('Student@123');
+  const L=[['STU001','Arun Kumar','English','B.A. English','II',1],['STU002','Priya Lakshmi','Tamil','B.A. Tamil','I',1],['STU003','Karthik Raja','Commerce','B.Com','III',1],['STU004','Divya Bharathi','Mathematics','B.Sc. Mathematics','II',1],['STU005','Suresh Babu','Physics','B.Sc. Physics','I',1],['STU006','Meena Devi','History','B.A. History','III',1],['STU007','Vignesh S','Computer Science','B.Sc. CS','II',0],['STU008','Anitha R','Chemistry','B.Sc. Chemistry','I',0],['STU009','Mohammed Faizal','Economics','B.A. Economics','III',1],['STU010','Nandhini K','Botany','B.Sc. Botany','II',0]];
+  DB={students:L.map(([id,name,dept,course,year,el])=>({id,name,dept,course,year,email:id.toLowerCase()+'@demo.college.edu',el:!!el,active:true,pw})),
+   staff:[{id:'STF001',name:'Canteen Staff 1',user:'staff1',pw:await sha('Staff@123'),active:true}],admin:[{user:'admin',pw:await sha('Admin@123')}],tokens:[]};
+  [3,2,1].forEach(n=>DB.tokens.push(mkT('STU001',ago(n),'COLLECTED',n)));
+  DB.tokens.push(mkT('STU002',today(),'REGISTERED'),mkT('STU003',today(),'COLLECTED'));save()}
+ render()}
+function mkT(sid,date,status,n){const c=DB.tokens.filter(t=>t.date===date).length+1,[y,m,d]=date.split('-'),a=new Uint8Array(16);crypto.getRandomValues(a);
+ const t={tn:`BF-${y}-${m}${d}-${String(c).padStart(4,'0')}`,sid,date,qr:'BF-TOKEN-'+[...a].map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase(),status,at:null,by:null};
+ if(status==='COLLECTED'){t.at=new Date(date+'T02:20:00Z').toISOString();t.by='STF001'}return t}
+const stu=id=>DB.students.find(s=>s.id===id),tokOf=(sid,d=today())=>DB.tokens.find(t=>t.sid===sid&&t.date===d);
+function claim(sid){const s=stu(sid);if(!s||!s.active)return 'Your account is deactivated. Contact the administrator.';if(!s.el)return 'You are currently not eligible for the free breakfast programme.';
+ if(tokOf(sid))return 'Breakfast Already Claimed Today';if(!isOpen())return `Applications for today are closed (cutoff ${DB.cfg.cutoff}). Please apply before the cutoff tomorrow.`;const t=mkT(sid,today(),'REGISTERED');DB.tokens.push(t);save();return null}
+const isOpen=()=>new Date().toLocaleTimeString('en-GB',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:false})<DB.cfg.cutoff;const nowT=()=>new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',second:'2-digit'});
+const left=()=>{const n=new Date().toLocaleTimeString('en-GB',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).split(':'),[a,b]=DB.cfg.cutoff.split(':');return (a*60+ +b)*60-(n[0]*3600+ +n[1]*60+ +n[2])};
+const f12=t=>{const[a,b]=t.split(':');return((a%12)||12)+':'+b+(a<12?' AM':' PM')};
+const cdTxt=()=>{const l=left();if(l<=0)return 'Applications are closed for today';const h=Math.floor(l/3600),m=Math.floor(l%3600/60),s=l%60;return `${h?h+' h ':''}${m} min ${s} sec left to apply`};
+const collect=(t,by)=>{t.status='COLLECTED';t.at=new Date().toISOString();t.by=by;save()};
+function verify(code){code=(code||'').trim().toUpperCase();const t=DB.tokens.find(x=>x.qr===code||x.tn===code);if(!t)return{k:'er',m:'Invalid Token'};
+ const s=stu(t.sid);if(t.status==='COLLECTED')return{k:'wa',m:'Breakfast Already Collected',t,s};if(t.date!==today())return{k:'er',m:'Token Expired',t,s};return{k:'ok',m:'Valid Token — Breakfast Can Be Issued',t,s}}
+const qrSvg=c=>{const q=qrcode(0,'M');q.addData(c);q.make();return q.createSvgTag({cellSize:4,margin:0,scalable:true})};
+const pill=st=>`<span class="pill ${st==='COLLECTED'?'ok':'wa'}">${st}</span>`;
+
+function layout(body,wide){const nav=NAV[S.role]||[];return `<main class="wrap ${wide?'wide':''}"><div class="top"><div><b>🍽️ Breakfast Token</b><div class="muted">${esc(S.name)} · ${S.role}</div><div class="muted">🕒 <span id="clk">${nowT()}</span> IST</div></div><button class="btn sm sec" data-a="logout">Logout</button></div>
+<div class="nav">${nav.map(([v,l])=>`<button data-a="view" data-v="${v}" class="${S.view===v?'on':''}">${l}</button>`).join('')}</div>${body}</main>${S.modal?modal():''}`}
+const NAV={student:[['home','Home'],['history','History'],['profile','Profile']],staff:[['scan','📷 Scan'],['today','Today'],['search','Search']],admin:[['dash','Dashboard'],['students','Students'],['reports','Reports'],['staff','Staff']]};
+
+function render(){DB.cfg=DB.cfg||{cutoff:'07:00'};stopCam();const app=$('#app');
+ if(!S.role){app.innerHTML=`<main class="wrap narrow"><div style="font-size:3rem">🍽️</div><h1>Digital Breakfast Token</h1><p class="muted">Apply daily before <b>${f12(DB.cfg.cutoff)}</b> to get your breakfast token.</p>
+ <div class="seg">${['student','staff','admin'].map(r=>`<button data-a="lr" data-r="${r}" class="${S.lr===r?'on':''}">${r[0].toUpperCase()+r.slice(1)}</button>`).join('')}</div>
+ <form class="card" data-f="login"><label>${S.lr==='student'?'Student ID':'Username'}<input name="u" autocomplete="username" required value="${esc(S.pre?.[0]||'')}"></label><label>Password<input name="p" type="password" required value="${esc(S.pre?.[1]||'')}"></label>
+ <button class="btn big">Log in</button><p class="err" role="alert">${esc(S.err||'')}</p></form>
+ <div class="card"><b>Demo logins</b><p class="muted">${{student:'STU001 (eligible) · STU007 (not eligible) / Student@123',staff:'staff1 / Staff@123',admin:'admin / Admin@123'}[S.lr]}</p><button class="btn sec sm" data-a="fill">Fill demo login</button></div></main>`;return}
+ app.innerHTML=({student:studentV,staff:staffV,admin:adminV})[S.role]()}
+
+function studentV(){const s=stu(S.uid),t=tokOf(s.id);let b='';S.open=isOpen();
+ if(S.view==='home'){b=`<div class="res ${isOpen()?'wa':'er'}" style="margin-top:0">⏰ Apply before ${f12(DB.cfg.cutoff)}<div id="cd" style="font-weight:400">${cdTxt()}</div></div><h1>Welcome, ${esc(s.name)}</h1><p class="muted">Student ID: ${s.id}</p>
+ <div class="card"><h2>Eligibility</h2>${s.el?'<span class="pill ok">✓ Eligible for Free Breakfast</span>':'<span class="pill er">Not eligible</span><p>You are currently not eligible for the free breakfast programme.</p>'}</div>
+ <div class="card"><h2>Today's Status</h2>`+(!t?`<p><b>Not applied yet</b></p><p class="muted">Apply every day before ${f12(DB.cfg.cutoff)} so the canteen can prepare the right amount of food.</p>${s.el?(isOpen()?'<button class="btn big" data-a="askclaim">APPLY FOR TODAY\'S BREAKFAST</button>':'<p class="err">Applications are closed for today.</p>'):''}`
+  :t.status==='REGISTERED'?`<p><b>Breakfast Reserved</b></p><p class="muted">Token: ${t.tn}</p><button class="btn big" data-a="view" data-v="token">SHOW QR CODE</button>${isOpen()?'<button class="btn sec" data-a="askcancel">Cancel my breakfast (not coming)</button>':''}`
+  :`<p><b>Breakfast Collected ✓</b></p><p class="muted">Collection time: ${fmtT(t.at)}</p>`)+'</div>'}
+ if(S.view==='token'&&t)b=`<div class="card"><h2>Breakfast Token Generated</h2><div class="tok">${t.tn}</div><p class="muted" style="text-align:center">${t.date}</p><div class="qr">${qrSvg(t.qr)}</div><p style="text-align:center">${pill(t.status)}</p><p class="muted" style="text-align:center">Show this QR at the breakfast counter.</p></div>`;
+ if(S.view==='history'){const h=DB.tokens.filter(x=>x.sid===s.id).sort((a,b)=>b.date.localeCompare(a.date));b=`<div class="card"><h2>Breakfast History</h2>${h.length?`<div class="sc"><table><tr><th>Date</th><th>Token</th><th>Status</th><th>Time</th></tr>${h.map(x=>`<tr><td>${x.date}</td><td>${x.tn}</td><td>${pill(x.status)}</td><td>${x.at?fmtT(x.at):'—'}</td></tr>`).join('')}</table></div>`:'<p class="muted">No breakfasts yet.</p>'}</div>`}
+ if(S.view==='profile')b=`<div class="card"><h2>${esc(s.name)}</h2>${[['Student ID',s.id],['Course',s.course],['Department',s.dept],['Year',s.year],['Email',s.email]].map(([k,v])=>`<p><span class="muted">${k}</span><br>${esc(v)}</p>`).join('')}</div>`;
+ return layout(b)}
+
+function resCard(r){if(!r)return'';const s=r.s,t=r.t;return `<div class="res ${r.k}">${r.k==='ok'?'✓ VALID TOKEN':esc(r.m)}${r.k==='ok'?'<div style="font-weight:400">Breakfast can be issued</div>':''}</div>
+ ${t?`<div class="card"><p><b>${esc(s.name)}</b><br><span class="muted">${s.id} · ${t.tn} · ${t.date}</span></p>${pill(t.status)}${t.at?`<p class="muted">Collected ${fmtT(t.at)}</p>`:''}${r.k==='ok'?`<button class="btn big" data-a="issue" data-q="${t.qr}">CONFIRM BREAKFAST GIVEN</button>`:''}</div>`:''}`}
+function staffV(){let b='';const T=DB.tokens.filter(t=>t.date===today()),c=T.filter(t=>t.status==='COLLECTED').length;
+ if(S.view==='scan')b=`<div class="card"><h2>Scan Breakfast QR</h2><div id="cam"></div><button class="btn big" data-a="cam">📷 SCAN QR CODE</button></div>
+ <form class="card" data-f="manual"><label>Or enter token manually<input name="q" placeholder="BF-TOKEN-… or BF-2026-…" required></label><button class="btn sec">Verify token</button></form>${resCard(S.res)}`;
+ if(S.view==='today')b=`<div class="grid"><div class="card stat"><b>${T.length}</b>Registered</div><div class="card stat"><b>${c}</b>Collected</div><div class="card stat"><b>${T.length-c}</b>Pending</div></div>
+ <div class="card sc"><table><tr><th>Student</th><th>Token</th><th>Status</th></tr>${T.map(t=>`<tr><td>${esc(stu(t.sid)?.name)}<br><span class="muted">${t.sid}</span></td><td>${t.tn.slice(-4)}</td><td>${pill(t.status)}</td></tr>`).join('')||'<tr><td colspan=3>No registrations yet</td></tr>'}</table></div>`;
+ if(S.view==='search'){const s=S.found,t=s&&tokOf(s.id);b=`<form class="card" data-f="search"><label>Search by Student ID<input name="q" placeholder="STU001" required></label><button class="btn">Search</button></form>`+(S.notfound?'<div class="res er">Student not found</div>':'')+
+ (s?`<div class="card"><p><b>${esc(s.name)}</b><br><span class="muted">${s.id} · ${esc(s.course)} · Year ${s.year}</span></p>${s.el?'<span class="pill ok">Eligible</span>':'<span class="pill er">Not eligible</span>'}
+ <p>${t?`Token ${t.tn} ${pill(t.status)}`:'No token today (forgot phone or not registered)'}</p>
+ ${t&&t.status==='REGISTERED'?`<button class="btn" data-a="issue" data-q="${t.qr}">MANUAL VERIFY &amp; MARK COLLECTED</button>`:''}
+ ${!t&&s.el&&s.active?`<button class="btn" data-a="proxy" data-s="${s.id}">REGISTER &amp; ISSUE (ID CARD CHECKED)</button>`:''}</div>`:'')}
+ return layout(b)}
+
+function adminV(){const T=DB.tokens.filter(t=>t.date===today()),c=T.filter(t=>t.status==='COLLECTED').length,el=DB.students.filter(s=>s.el&&s.active).length;let b='';
+ if(S.view==='dash')b=`<h1>Today · ${today()}</h1><div class="card"><h2>🍳 Food to prepare: ${T.length} breakfasts</h2><p class="muted">Based on students who applied today.</p><form data-f="cutoff"><label>Application cutoff time<input type="time" name="t" value="${DB.cfg.cutoff}" required></label><button class="btn sec">Save cutoff</button></form></div><div class="grid">${[['Eligible',el],['Applied',T.length],['Collected',c],['Pending',T.length-c]].map(([k,v])=>`<div class="card stat"><b>${v}</b>${k}</div>`).join('')}</div>
+ <div class="card"><h2>Eligible but not registered</h2><p class="muted">${DB.students.filter(s=>s.el&&s.active&&!tokOf(s.id)).map(s=>esc(s.name)).join(', ')||'Everyone has registered'}</p></div>`;
+ if(S.view==='students'){const q=(S.q||'').toLowerCase();b=`<div class="card"><button class="btn sm" data-a="addS">+ Add student</button><form data-f="sq"><input name="q" placeholder="Search by name or ID" value="${esc(S.q||'')}"></form></div><div class="card sc"><table><tr><th>ID</th><th>Name</th><th>Dept · Year</th><th>Eligible</th><th>Active</th><th></th></tr>
+ ${DB.students.filter(s=>(s.id+s.name).toLowerCase().includes(q)).map(s=>`<tr><td>${s.id}</td><td>${esc(s.name)}</td><td>${esc(s.dept)} · ${s.year}</td><td><button class="btn sm ${s.el?'':'sec'}" data-a="tel" data-s="${s.id}">${s.el?'Yes':'No'}</button></td><td><button class="btn sm ${s.active?'':'sec'}" data-a="tact" data-s="${s.id}">${s.active?'Active':'Off'}</button></td><td><button class="btn sm sec" data-a="editS" data-s="${s.id}">Edit</button><button class="btn sm sec" data-a="hist" data-s="${s.id}">History</button></td></tr>`).join('')}</table></div>`}
+ if(S.view==='reports'){const d=S.d||today(),m=d.slice(0,7),D=DB.tokens.filter(t=>t.date===d),M=DB.tokens.filter(t=>t.date.startsWith(m));
+ b=`<form class="card" data-f="date"><label>Date<input type="date" name="d" value="${d}"></label><button class="btn sec">Show report</button></form>
+ <div class="grid"><div class="card stat"><b>${D.length}</b>Registered</div><div class="card stat"><b>${D.filter(t=>t.status==='COLLECTED').length}</b>Collected</div><div class="card stat"><b>${M.filter(t=>t.status==='COLLECTED').length}</b>Distributed in ${m}</div></div>
+ <div class="card sc"><h2>Daily report · ${d}</h2><table><tr><th>Student</th><th>Token</th><th>Status</th><th>Time</th></tr>${D.map(t=>`<tr><td>${esc(stu(t.sid)?.name)}</td><td>${t.tn}</td><td>${pill(t.status)}</td><td>${t.at?fmtT(t.at):'—'}</td></tr>`).join('')||'<tr><td colspan=4>No records</td></tr>'}</table></div>
+ <div class="card"><h2>Registered but not collected</h2><p class="muted">${D.filter(t=>t.status==='REGISTERED').map(t=>esc(stu(t.sid)?.name)).join(', ')||'None'}</p></div>${monthly(S.m||today().slice(0,7))}`}
+ if(S.view==='staff')b=`<form class="card" data-f="addstaff"><h2>Add canteen staff</h2><label>Name<input name="n" required maxlength="60"></label><label>Username<input name="u" required maxlength="30"></label><label>Password (min 8)<input name="p" type="password" minlength="8" required></label><button class="btn">Create account</button></form>
+ <div class="card sc"><table><tr><th>Staff</th><th>Username</th><th></th></tr>${DB.staff.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.user)}</td><td><button class="btn sm ${x.active?'':'sec'}" data-a="tstaff" data-s="${x.id}">${x.active?'Active':'Off'}</button></td></tr>`).join('')}</table></div>`;
+ return layout(b,true)}
+
+function monthly(mm){const MT=DB.tokens.filter(t=>t.date.startsWith(mm)),Y=['I','II','III'],G={};
+ DB.students.forEach(s=>{(G[s.dept]=G[s.dept]||[]).push(s)});
+ const cnt=(arr,st)=>{const ids=new Set(arr.map(s=>s.id));return MT.filter(t=>ids.has(t.sid)&&(!st||t.status===st)).length};
+ const depts=Object.keys(G).sort();
+ const sum=depts.map(d=>`<tr><td>${esc(d)}</td>${Y.map(y=>`<td>${cnt(G[d].filter(s=>s.year===y),'COLLECTED')}</td>`).join('')}<td><b>${cnt(G[d],'COLLECTED')}</b></td></tr>`).join('');
+ const det=depts.map(d=>{const rows=Y.map(y=>{const ss=G[d].filter(s=>s.year===y),L=ss.map(s=>{const a=MT.filter(t=>t.sid===s.id),c=a.filter(t=>t.status==='COLLECTED').length;return a.length?`<tr><td>${esc(s.name)}<br><span class="muted">${s.id}</span></td><td>${a.length}</td><td>${c}</td><td>${a.length-c}</td></tr>`:''}).join('');return L?`<tr><th colspan=4>Year ${y} · ${cnt(ss,'COLLECTED')} collected</th></tr>${L}`:''}).join('');
+  return `<div class="card sc"><h2>${esc(d)} · ${cnt(G[d],'COLLECTED')} collected</h2><table><tr><th>Student</th><th>Applied</th><th>Collected</th><th>Not collected</th></tr>${rows||'<tr><td colspan=4>No applications this month</td></tr>'}</table></div>`}).join('');
+ return `<form class="card" data-f="month"><h2>Monthly food collection</h2><label>Month<input type="month" name="m" value="${mm}"></label><button class="btn sec">Show month</button></form>
+ <div class="card sc"><h2>Collected by department and year · ${mm}</h2><table><tr><th>Department</th>${Y.map(y=>`<th>Year ${y}</th>`).join('')}<th>Total</th></tr>${sum}<tr><td><b>All</b></td>${Y.map(y=>`<td><b>${cnt(DB.students.filter(s=>s.year===y),'COLLECTED')}</b></td>`).join('')}<td><b>${cnt(DB.students,'COLLECTED')}</b></td></tr></table></div>${det}`}
+function modal(){const m=S.modal;let h='';
+ if(m.t==='confirm')h=`<h2>Apply for breakfast?</h2><p>Do you want to apply for today's free breakfast? Please apply only if you will come to collect it.</p><button class="btn" data-a="doclaim">CONFIRM</button><button class="btn sec" data-a="close">Cancel</button>`;
+ if(m.t==='cancel')h='<h2>Cancel breakfast?</h2><p>Your token will be removed so the canteen can reduce food. You can apply again before the cutoff.</p><button class="btn bad" data-a="docancel">YES, CANCEL</button><button class="btn sec" data-a="close">Keep it</button>';if(m.t==='hist'){const s=stu(m.id),H=DB.tokens.filter(t=>t.sid===m.id).sort((a,b)=>b.date.localeCompare(a.date));h=`<h2>${esc(s.name)} · history</h2>${H.map(t=>`<p>${t.date} · ${t.tn} ${pill(t.status)}</p>`).join('')||'<p class="muted">No records</p>'}<button class="btn sec" data-a="close">Close</button>`}
+ if(m.t==='stu'){const s=m.s||{};h=`<form data-f="stu"><h2>${m.s?'Edit':'Add'} student</h2><label>Student ID<input name="id" required pattern="[A-Za-z0-9]{3,12}" value="${esc(s.id)}" ${m.s?'readonly':''}></label><label>Name<input name="name" required maxlength="60" value="${esc(s.name)}"></label><label>Department<input name="dept" required maxlength="50" value="${esc(s.dept)}"></label><label>Course<input name="course" required maxlength="50" value="${esc(s.course)}"></label><label>Year<select name="year">${['I','II','III'].map(y=>`<option ${s.year===y?'selected':''}>${y}</option>`).join('')}</select></label><label>Email<input name="email" type="email" value="${esc(s.email)}"></label>
+ <label>Eligibility<select name="el"><option value="1" ${s.el?'selected':''}>Eligible</option><option value="0" ${m.s&&!s.el?'selected':''}>Not eligible</option></select></label>${m.s?'<label>New password (optional, min 8 — leave blank to keep current)<input name="pw" type="password" minlength="8" autocomplete="new-password"></label>':'<label>Initial password (min 8)<input name="pw" type="password" minlength="8" required></label>'}<p class="err">${esc(m.err||'')}</p><button class="btn">Save</button><button type="button" class="btn sec" data-a="close">Cancel</button></form>`}
+ return `<div class="ov"><div class="card">${h}</div></div>`}
+
+const A={
+ lr(b){S.lr=b.dataset.r;S.err='';S.pre=null;render()},fill(){S.pre={student:['STU001','Student@123'],staff:['staff1','Staff@123'],admin:['admin','Admin@123']}[S.lr];render()},
+ logout(){S={lr:'student'};render()},view(b){S.view=b.dataset.v;S.res=null;S.found=null;S.notfound=false;render()},close(){S.modal=null;render()},
+ askclaim(){S.modal={t:'confirm'};render()},askcancel(){S.modal={t:'cancel'};render()},docancel(){S.modal=null;const t=tokOf(S.uid);if(t&&t.status==='REGISTERED'&&isOpen()){DB.tokens=DB.tokens.filter(x=>x!==t);save();toast('Breakfast cancelled');S.view='home'}else toast('Cannot cancel now.');render()},
+ doclaim(){S.modal=null;const e=claim(S.uid);if(e){toast(e);S.view='home'}else{toast('Breakfast Token Generated');S.view='token'}render()},
+ issue(b){const t=DB.tokens.find(x=>x.qr===b.dataset.q);if(t&&t.status==='REGISTERED'&&t.date===today()){collect(t,S.staffId);S.res={k:'ok',m:'',t,s:stu(t.sid)};S.res.k='wa';S.res.m='✓ BREAKFAST COLLECTED';toast('Breakfast collected — recorded')}else toast('Cannot issue this token.');if(S.view==='search')S.found=stu(t.sid);render()},
+ proxy(b){const e=claim(b.dataset.s);toast(e||'Token issued on student\'s behalf');S.found=stu(b.dataset.s);render()},
+ async cam(){const box=$('#cam');if(stream)return stopCam();
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})}catch{toast('Camera unavailable. Use manual entry below.');return}
+  box.innerHTML='<video playsinline muted></video>';const v=$('video',box);v.srcObject=stream;await v.play();const cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});
+  const loop=()=>{if(!stream)return;if(v.videoWidth){cv.width=v.videoWidth;cv.height=v.videoHeight;cx.drawImage(v,0,0);const r=jsQR(cx.getImageData(0,0,cv.width,cv.height).data,cv.width,cv.height);if(r){S.res=verify(r.data);render();return}}requestAnimationFrame(loop)};loop()},
+ tel(b){const s=stu(b.dataset.s);s.el=!s.el;save();render()},tact(b){const s=stu(b.dataset.s);s.active=!s.active;save();render()},
+ tstaff(b){const x=DB.staff.find(y=>y.id===b.dataset.s);x.active=!x.active;save();render()},
+ addS(){S.modal={t:'stu'};render()},editS(b){S.modal={t:'stu',s:stu(b.dataset.s)};render()},hist(b){S.modal={t:'hist',id:b.dataset.s};render()}};
+function stopCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
+const F={
+ async login(f){const u=f.get('u').trim(),h=await sha(f.get('p'));let r;
+  if(S.lr==='student')r=DB.students.find(s=>s.id===u.toUpperCase());else if(S.lr==='staff')r=DB.staff.find(s=>s.user===u);else r=DB.admin.find(s=>s.user===u);
+  if(!r||r.pw!==h){S.err='Incorrect ID or password.';S.pre=null;return render()}
+  if(r.active===false){S.err='Your account is deactivated. Contact the administrator.';return render()}
+  S={lr:S.lr,role:S.lr,name:r.name||r.user,uid:r.id,staffId:r.id,view:{student:'home',staff:'scan',admin:'dash'}[S.lr]};render()},
+ manual(f){S.res=verify(f.get('q'));render()},
+ search(f){const q=f.get('q').trim().toUpperCase();S.found=stu(q)||null;S.notfound=!S.found;render()},
+ sq(f){S.q=f.get('q');render()},month(f){S.m=f.get('m')||today().slice(0,7);render()},cutoff(f){DB.cfg.cutoff=f.get('t')||'07:00';save();toast('Cutoff saved: '+DB.cfg.cutoff);render()},date(f){S.d=f.get('d')||today();render()},
+ async addstaff(f){const u=f.get('u').trim();if(DB.staff.some(s=>s.user===u))return toast('Username already exists');
+  DB.staff.push({id:'STF'+String(DB.staff.length+1).padStart(3,'0'),name:f.get('n').trim(),user:u,pw:await sha(f.get('p')),active:true});save();toast('Staff account created');render()},
+ async stu(f){const id=f.get('id').trim().toUpperCase(),ex=S.modal.s,o={name:f.get('name').trim(),dept:f.get('dept').trim(),course:f.get('course').trim(),year:f.get('year'),email:f.get('email').trim(),el:f.get('el')==='1'};
+  if(!ex&&stu(id)){S.modal.err='That Student ID already exists.';return render()}
+  if(ex){Object.assign(ex,o);if(f.get('pw'))ex.pw=await sha(f.get('pw'))}else DB.students.push({id,...o,active:true,pw:await sha(f.get('pw'))});save();S.modal=null;toast('Student saved');render()}};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b&&A[b.dataset.a])A[b.dataset.a](b)});
+document.addEventListener('submit',e=>{e.preventDefault();const f=F[e.target.dataset.f];if(f)f(new FormData(e.target))});
+init();
+setInterval(()=>{const k=$('#clk');if(k)k.textContent=nowT();if(S.role==='student'&&S.view==='home'&&!S.modal){if(S.open!==isOpen())render();else{const c=$('#cd');if(c)c.textContent=cdTxt()}}},1000);
+</script></body></html>
